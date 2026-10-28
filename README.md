@@ -6,6 +6,7 @@ I have organized the notes in the following sections, each of them in a separate
 
 - [`01_Design_Patterns`](./01_Design_Patterns/)
 - [`02_SW_Architecture_Patterns`](./02_SW_Architecture_Patterns/)
+- [`03_Fundamentals_SW_Architecture_Book`](./03_Fundamentals_SW_Architecture_Book/)
 
 See also some other related guides of mine:
 
