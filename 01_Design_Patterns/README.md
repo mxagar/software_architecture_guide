@@ -7,4 +7,3 @@ Git submodule.
 
 See the [root README](../README.md#cloning-with-submodules) for instructions on
 cloning this guide with its submodules or initializing them after cloning.
-
