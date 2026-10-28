@@ -1,6 +1,10 @@
 # Design Patterns
 
-I moved this guide to the following repository:
+The Design Patterns guide is maintained in
+[mxagar/design_patterns_notes](https://github.com/mxagar/design_patterns_notes)
+and included here as the [`design_patterns_notes`](./design_patterns_notes/)
+Git submodule.
 
-[https://github.com/mxagar/design_patterns_notes](https://github.com/mxagar/design_patterns_notes)
+See the [root README](../README.md#cloning-with-submodules) for instructions on
+cloning this guide with its submodules or initializing them after cloning.
 

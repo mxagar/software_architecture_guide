@@ -1,0 +1,3 @@
+[submodule "01_Design_Patterns/design_patterns_notes"]
+	path = 01_Design_Patterns/design_patterns_notes
+	url = https://github.com/mxagar/design_patterns_notes.git
