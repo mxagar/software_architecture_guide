@@ -13,10 +13,11 @@ Table of contents:
     - [Why Design Our Own Software?](#why-design-our-own-software)
       - [Examples of Software Design](#examples-of-software-design)
     - [Architecture Pattern: Monolith](#architecture-pattern-monolith)
-    - [Architecture Pattern: MVC](#architecture-pattern-mvc)
+    - [Architecture Pattern: MVC = Model-View-Controller](#architecture-pattern-mvc--model-view-controller)
+      - [Django's MVC Implementation](#djangos-mvc-implementation)
     - [Architecture Pattern: Layered](#architecture-pattern-layered)
     - [Architecture Pattern: Event-Driven](#architecture-pattern-event-driven)
-    - [Architecture Archetypes](#architecture-archetypes)
+    - [Exercise: Architecture Archetypes](#exercise-architecture-archetypes)
   - [Communicating Software Architecture](#communicating-software-architecture)
   - [Microservices and Modular Design Patterns](#microservices-and-modular-design-patterns)
   - [Cloud-Native Architectural Patterns](#cloud-native-architectural-patterns)
@@ -117,13 +118,136 @@ Further reading: [New Tweets per second record, and how!](https://blog.x.com/eng
 
 ### Architecture Pattern: Monolith
 
-### Architecture Pattern: MVC
+- **A monolith packages the application's business capabilities into one deployable unit**, typically maintained in a shared codebase.
+  - Components within the same process communicate through function calls, avoiding network latency and serialization overhead between those components.
+  - A single database is common, but is not a requirement of the pattern.
+- **Internal structure still matters:** Organize code into clear modules rather than allowing dependencies to grow ad hoc.
+  - A layered structure separates presentation, business logic, and data access.
+  - MVC (Model–View–Controller) separates data and domain behavior, presentation, and request handling.
+- **Advantages:**
+  - Simple deployment and local development help small teams ship features, gather feedback, and iterate quickly.
+  - Debugging and tracing requests are easier when the relevant code runs in one process.
+  - Operations within one transactional database can maintain consistency without coordinating distributed transactions.
+- **Limitations as the system grows:**
+  - A faulty component can affect the whole application, and deploying a change requires deploying the application as a unit.
+  - Scaling usually replicates the entire application, even when only one feature needs more capacity--for example, a busy product catalog alongside rarely used administration features.
+  - Shared code and release schedules can increase coordination costs and limit team independence.
+- **Good fit:** Startups validating an idea, small teams with limited resources, and applications that benefit from straightforward transactions.
+- **Reconsider the design** when deployments become bottlenecks, components need different scaling strategies, or teams need independent releases. A well-structured monolith can still support substantial scale; growth alone does not require microservices.
+
+![Monolithic vs Microservices](./assets/monolith_vs_microservices.png)
+
+![Monolithic vs Ad-hoc](./assets/monolith_vs_adhoc.jpeg)
+
+### Architecture Pattern: MVC = Model-View-Controller
+
+- **MVC (Model–View–Controller)** separates responsibilities within an application:
+  - **Model:** Represents domain data, behavior, and business rules independently of presentation.
+  - **View:** Presents information to the user, such as a page built with HTML (Hypertext Markup Language) and styled with CSS (Cascading Style Sheets).
+  - **Controller:** Handles user input, invokes model operations, and selects the view and data to return.
+- **Example -- Add to cart:** The controller receives the request, asks the model to update the cart, and supplies the updated data to the view.
+- **Benefits:** Clear responsibilities improve testability, support parallel work, and give developers predictable places for code. Web frameworks adapt these ideas with different terminology.
+- **Scope:** MVC organizes application code; a monolith describes how the application is packaged and deployed. They can be used together.
+  - MVC also differs from layered architecture: it does not prescribe a complete stack of layers or strict dependencies between them, and can organize a presentation layer within a larger system.
+- **Limitations:** Controllers can become bloated and responsibilities can blur. Related presentation patterns include MVP (Model–View–Presenter) and MVVM (Model–View–ViewModel).
+
+![MVC](./assets/mvc.png)
+
+![MVC Evolution](./assets/mvc_evolution.png)
+
+Further reading: [MVC Explained](https://www.tomdalling.com/blog/software-design/model-view-controller-explained/).
+
+#### Django's MVC Implementation
+
+- Django describes its organization as **MTV (Model–Template–View)**. Its names do not map exactly to conventional MVC terminology. [Official explanation](https://docs.djangoproject.com/en/stable/faq/general/#django-appears-to-be-a-mvc-framework-but-you-call-the-controller-the-view-and-the-view-the-template-how-come-you-don-t-use-the-standard-names).
+
+| Responsibility | Django implementation |
+| --- | --- |
+| Model: data and domain behavior | Classes in `models.py`; the ORM (Object–Relational Mapper) provides database access. |
+| Presentation, usually called the MVC view | Templates, commonly under `templates/`, define how the selected data appears. |
+| Select data and construct a response | A function or class-based view in `views.py` handles a request and may render a template. |
+| Dispatch input to a handler | The framework uses URL (Uniform Resource Locator) patterns in `urls.py` to select a view. Django identifies this routing machinery as its controller. |
+
+- So in comparison to the MVC:
+
+| Traditional MVC | Django |
+|---|---|
+| Model | Model |
+| View | Template |
+| Controller | View + framework routing (`urls.py`) |
+
+- For a practical comparison, a Django view performs much of the orchestration commonly assigned to a web MVC controller, while routing is handled by the framework.
+- **Example -- Display a restaurant menu:** In an existing Django project, register an app named `menu` in `INSTALLED_APPS`, retain the default app-template discovery, and create the following files. Models define fields and behavior; migrations create the corresponding database structure. [Model documentation](https://docs.djangoproject.com/en/stable/topics/db/models/).
+
+```python
+# menu/models.py
+from django.db import models
+
+
+class Dish(models.Model):
+    name = models.CharField(max_length=100)
+    price = models.DecimalField(max_digits=8, decimal_places=2)
+```
+
+```python
+# menu/views.py
+from django.shortcuts import render
+
+from .models import Dish
+
+
+def menu_list(request):
+    dishes = Dish.objects.order_by("name")
+    return render(request, "menu/list.html", {"dishes": dishes})
+```
+
+```python
+# menu/urls.py
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path("", views.menu_list, name="menu-list"),
+]
+```
+
+```python
+# Project URL configuration, e.g. config/urls.py
+from django.urls import include, path
+
+urlpatterns = [
+    path("menu/", include("menu.urls")),
+    # Retain other project routes here.
+]
+```
+
+```html
+<!-- menu/templates/menu/list.html -->
+<h1>Menu</h1>
+<ul>
+  {% for dish in dishes %}
+    <li>{{ dish.name }} -- {{ dish.price }}</li>
+  {% empty %}
+    <li>No dishes available.</li>
+  {% endfor %}
+</ul>
+```
+
+```bash
+python manage.py makemigrations menu
+python manage.py migrate
+python manage.py runserver
+```
+
+- Open `http://127.0.0.1:8000/menu/`: URL routing selects `menu_list`, the view retrieves dishes through the model, and `render()` combines the template and context into an HTTP (Hypertext Transfer Protocol) response. The template displays the empty message until dishes are added. [Routing, views, and templates tutorial](https://docs.djangoproject.com/en/stable/intro/tutorial03/).
+- Keep presentation in templates and reusable business rules outside request handlers. Models can hold domain behavior; more complex workflows can use separate application services.
 
 ### Architecture Pattern: Layered
 
 ### Architecture Pattern: Event-Driven
 
-### Architecture Archetypes
+### Exercise: Architecture Archetypes
 
 ## Communicating Software Architecture
 
