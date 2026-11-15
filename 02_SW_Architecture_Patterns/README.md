@@ -21,6 +21,7 @@ Table of contents:
     - [Exercise: Architecture Archetypes](#exercise-architecture-archetypes)
       - [Stage 1: Launch the MVP](#stage-1-launch-the-mvp)
       - [Stage 2: Evolve for Growth](#stage-2-evolve-for-growth)
+    - [Summary: Introduction to Software Architecture](#summary-introduction-to-software-architecture)
   - [Communicating Software Architecture](#communicating-software-architecture)
   - [Microservices and Modular Design Patterns](#microservices-and-modular-design-patterns)
   - [Cloud-Native Architectural Patterns](#cloud-native-architectural-patterns)
@@ -352,6 +353,18 @@ Further reading: [Event-Driven Architecture -- AWS](https://aws.amazon.com/event
 ![EcoTech: New Features](./assets/ecotech_new_features.png)
 
 ![Monolith Structure with Peeled Out Microservices](./assets/ecotech_microservices.jpeg)
+
+### Summary: Introduction to Software Architecture
+
+- **Monolith:** A single deployable application keeps development and operations simple, making it a useful starting point for small teams validating an idea.
+- **MVC (Model–View–Controller):** Separates domain data and behavior, presentation, and input handling within an application.
+- **Layered architecture:** Establishes boundaries between presentation, business logic, and data access to improve maintainability as complexity grows.
+- **Event-driven architecture:** Decouples components through events and asynchronous processing, supporting integrations and independent scaling while complicating debugging and consistency.
+- **Choose and combine patterns according to current needs:** They address different concerns and can coexist. Added architectural complexity should solve a concrete problem.
+- **Document trade-offs and revisit decisions:** A suitable design today may need to evolve as requirements, team size, and operational demands change.
+
+[Video: Summary of Introduction to Software Architecture](https://www.youtube.com/watch?v=04rEKcoSH3I)
+
 
 ## Communicating Software Architecture
 
