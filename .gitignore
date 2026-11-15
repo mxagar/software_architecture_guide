@@ -219,3 +219,5 @@ __marimo__/
 
 # Added
 .DS_Store
+.vscode
+.agents
