@@ -16,8 +16,11 @@ Table of contents:
     - [Architecture Pattern: MVC = Model-View-Controller](#architecture-pattern-mvc--model-view-controller)
       - [Django's MVC Implementation](#djangos-mvc-implementation)
     - [Architecture Pattern: Layered](#architecture-pattern-layered)
+      - [Extra: Domain-Driven Design (DDD) and Onion Architecture](#extra-domain-driven-design-ddd-and-onion-architecture)
     - [Architecture Pattern: Event-Driven](#architecture-pattern-event-driven)
     - [Exercise: Architecture Archetypes](#exercise-architecture-archetypes)
+      - [Stage 1: Launch the MVP](#stage-1-launch-the-mvp)
+      - [Stage 2: Evolve for Growth](#stage-2-evolve-for-growth)
   - [Communicating Software Architecture](#communicating-software-architecture)
   - [Microservices and Modular Design Patterns](#microservices-and-modular-design-patterns)
   - [Cloud-Native Architectural Patterns](#cloud-native-architectural-patterns)
@@ -148,7 +151,9 @@ Further reading: [New Tweets per second record, and how!](https://blog.x.com/eng
 - **Example -- Add to cart:** The controller receives the request, asks the model to update the cart, and supplies the updated data to the view.
 - **Benefits:** Clear responsibilities improve testability, support parallel work, and give developers predictable places for code. Web frameworks adapt these ideas with different terminology.
 - **Scope:** MVC organizes application code; a monolith describes how the application is packaged and deployed. They can be used together.
-  - MVC also differs from layered architecture: it does not prescribe a complete stack of layers or strict dependencies between them, and can organize a presentation layer within a larger system.
+- **Communication differs from strict layering:** MVC does not impose an adjacent-layer-only call sequence. Interactions can connect any of its three roles as the MVC variant permits--for example, a controller updates the model, a view reads model state, and model changes notify the view.
+  - This flexibility still preserves responsibilities: the model should remain independent of presentation details, and framework conventions may restrict interactions.
+  - Strict layered architecture restricts calls to the next lower layer; relaxed layering may allow skipping layers. MVC can itself organize the presentation layer of a larger layered application.
 - **Limitations:** Controllers can become bloated and responsibilities can blur. Related presentation patterns include MVP (Model–View–Presenter) and MVVM (Model–View–ViewModel).
 
 ![MVC](./assets/mvc.png)
@@ -245,9 +250,108 @@ python manage.py runserver
 
 ### Architecture Pattern: Layered
 
+- **Layered architecture** separates code by responsibility:
+  - **Presentation:** Handles user interaction and incoming requests.
+  - **Business logic:** Executes business operations and enforces rules, such as pricing and order validation.
+  - **Data access:** Reads and writes persistent data.
+- **Dependency rules:** In strict layering, a layer uses only the layer immediately below it; relaxed layering permits skipping layers. For example, presentation should not bypass business rules by updating the database directly.
+- **Layers are logical boundaries; tiers are deployment boundaries.** All three layers can run in one monolith; separate layers do not require separate servers.
+- **Benefits:** Clear boundaries support focused testing, team responsibilities, and reuse of business rules across web and mobile interfaces.
+  - Hiding database details behind stable interfaces reduces the impact of switching databases, although differences in queries, transactions, and schemas can still require changes.
+- **Costs:** Unnecessary pass-through layers add complexity and call or mapping overhead. Network latency arises when calls cross deployment boundaries, not simply because code has layers.
+- **Relationship to MVC (Model–View–Controller):** MVC separates interaction and presentation responsibilities; layering defines broader application boundaries. MVC can organize the presentation layer of a layered application.
+
+![Layered Architecture](./assets/layered_architecture.png)
+
+#### Extra: Domain-Driven Design (DDD) and Onion Architecture
+
+- **DDD (Domain-Driven Design):** Model business concepts and rules with domain experts.
+  - **Ubiquitous language:** Shared terminology in discussions and code.
+  - **Bounded context:** A boundary within which a model applies, such as ordering or delivery.
+  - **Domain objects:** Entities have identity; value objects are defined by values; aggregates enforce consistency through a root entity; domain services hold rules that do not belong to one object.
+- **Fit with layering:** Each context can separate these responsibilities:
+
+| Layer | Responsibility | Example |
+| --- | --- | --- |
+| Presentation | Handle input and responses. | Receive an order request. |
+| Application | Coordinate the use case. | Load an order, call `accept()`, save it. |
+| Domain | Enforce business rules. | Reject acceptance of a cancelled order. |
+| Infrastructure | Implement storage and integrations. | Save orders; send notifications. |
+
+- **Onion architecture:** Source-code dependencies point inward toward the domain. Inner layers define interfaces; infrastructure implements them, keeping business rules independent of databases and frameworks. Runtime calls can still reach outward through those interfaces.
+- **Use when business rules are complex:** DDD shapes the model; Onion protects it from technical details. Both work within a monolith and do not require microservices.
+
+![Onion Architecture](./assets/onion_architecture.png)
+
+References:
+
+- [Bounded contexts](https://martinfowler.com/bliki/BoundedContext.html)
+- [DDD layers](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/ddd-oriented-microservice)
+- [Domain model patterns](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/microservice-domain-model)
+- [Onion/Clean architecture](https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures).
+
 ### Architecture Pattern: Event-Driven
 
+- **Event-driven architecture:** Components publish events describing what happened, such as `OrderReceived` or `PaymentFailed`; interested consumers react to them.
+  - In **publish–subscribe**, publishers send events through an event channel or broker without calling each subscriber directly.
+  - Consumers typically process events asynchronously; the publisher does not wait for their business operations to finish.
+- **Example -- Checkout:**
+  - With synchronous request–response, checkout waits for payment, inventory, and shipping calls; a slow or unavailable dependency can delay the response.
+  - With events, checkout records the order, publishes `OrderReceived`, and acknowledges that processing has started. Payment, inventory, notifications, and analytics react as the workflow progresses.
+  - Acknowledging receipt does not mean payment succeeded or delivery is confirmed; dependent steps still need coordination.
+- **Benefits:**
+  - Loose coupling lets consumers evolve and scale independently.
+  - New subscribers, such as fraud detection or marketing services, can react to existing events without changing publisher logic, provided those events contain the information they need.
+  - Fits workflows spanning multiple systems or teams.
+- **Trade-offs:**
+  - **Eventual consistency:** Updates happen at different times; an accepted order may appear before inventory is updated.
+  - **Harder tracing:** A workflow crosses handlers and services, so logs must be correlated rather than followed through one call stack.
+  - **Failure propagation:** Invalid events or faulty consumers can disrupt downstream processing; asynchronous communication still requires error handling.
+- **Fit with other patterns:** A monolith or layered application can also use events. Deployment structure, code organization, and communication style are separate design choices.
+- **Use when** asynchronous workflows and loose coupling justify the additional coordination and operational complexity.
+
+![Request-Response](./assets/request_response.png)
+
+![Event-Driven Architecture](./assets/event_driven_architecture.png)
+
+![Comparing Request and Event](./assets/comparing_request_and_event.png)
+
+![Publisher-Subscriber](./assets/publisher_subscriber.png)
+
+![Synchronous vs Asynchronous](./assets/synch_asynch.png)
+
+Further reading: [Event-Driven Architecture -- AWS](https://aws.amazon.com/event-driven-architecture/).
+
 ### Exercise: Architecture Archetypes
+
+- **Scenario:** EcoDweller Solutions is building a SHEMS (Smart Home Energy Management System) to help homeowners monitor and optimize energy use. Architecture should evolve with its business needs.
+
+#### Stage 1: Launch the MVP
+
+- **Goal:** A small team with limited funding needs to launch an MVP (Minimum Viable Product) quickly and validate it with early adopters.
+- **Requirements:** Ingest real-time readings from one smart-meter model, display historical consumption in a basic web dashboard, and manually switch a smart plug on or off.
+- **Proposed architecture:** A monolith handles web requests, authentication, ingestion, dashboard rendering, and device communication; an external database persists the data.
+  - **Advantage:** One application simplifies development and deployment, helping the team launch and iterate quickly.
+  - **Future risk:** Coupled releases, shared failures, and scaling the whole application can become constraints as usage and features grow.
+
+![EcoTech: Product Goals](./assets/ecotech_product_goals.png)
+
+![Example Monolith Structure with Everything in One Place](./assets/ecotech_monolith.jpeg)
+
+#### Stage 2: Evolve for Growth
+
+- **Context:** Funding, users, and team size have increased; deployments are slowing and bugs can affect the whole application.
+- **New requirements:** Consumption-threshold alerts, scheduled device actions, support for two additional device types such as thermostats and solar inverters, and greater resilience to component failures.
+- **Proposed evolution:** Extract ingestion and alerting into separate services, connected through a message queue for asynchronous event handling.
+  - Extend ingestion for the new device types; retain and extend scheduling and device control in the core application.
+  - Keep authentication and other capabilities in the monolith rather than splitting every feature into a service.
+  - **Advantage:** Ingestion and alerting can be maintained and deployed independently. Asynchronous processing reduces direct availability dependencies, provided failures and queued work are handled correctly.
+  - **Trade-off:** More services and a queue introduce operational overhead, harder tracing, and a need to manage retries, duplicate messages, and delayed processing.
+- **Decision principle:** Make incremental changes that address current requirements. Other designs are valid if their benefits and trade-offs can be justified; a complete microservices or event-driven migration is not required.
+
+![EcoTech: New Features](./assets/ecotech_new_features.png)
+
+![Monolith Structure with Peeled Out Microservices](./assets/ecotech_microservices.jpeg)
 
 ## Communicating Software Architecture
 
