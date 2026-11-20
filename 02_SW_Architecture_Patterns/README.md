@@ -23,6 +23,11 @@ Table of contents:
       - [Stage 2: Evolve for Growth](#stage-2-evolve-for-growth)
     - [Summary: Introduction to Software Architecture](#summary-introduction-to-software-architecture)
   - [Communicating Software Architecture](#communicating-software-architecture)
+    - [Communicating Software Architecture: Introduction](#communicating-software-architecture-introduction)
+    - [Mermaid](#mermaid)
+    - [D2: Declarative Diagramming](#d2-declarative-diagramming)
+    - [Extra: Excalidraw](#extra-excalidraw)
+    - [Communicating Sequences](#communicating-sequences)
   - [Microservices and Modular Design Patterns](#microservices-and-modular-design-patterns)
   - [Cloud-Native Architectural Patterns](#cloud-native-architectural-patterns)
   - [Data and AI Architecture Patterns](#data-and-ai-architecture-patterns)
@@ -367,6 +372,204 @@ Further reading: [Event-Driven Architecture -- AWS](https://aws.amazon.com/event
 
 
 ## Communicating Software Architecture
+
+### Communicating Software Architecture: Introduction
+
+- **Effective communication makes architectural decisions usable.** Teams must understand decisions to implement and maintain the system correctly.
+  - Explain the purpose of each component and the problem it solves.
+  - Be clear about complexity and trade-offs.
+- **Adapt the explanation to the audience.** The same system needs different levels of detail and focus.
+  - **Technical teams:** Implementation details, authentication flows, error handling, database schemas, and dependencies.
+    - **Online store example:** An API (Application Programming Interface) gateway leads to REST (Representational State Transfer) endpoints using Spring MVC (Model-View-Controller) and a GraphQL interface.
+      - An order facade orchestrates validation, pricing, inventory, and payments.
+      - Data access uses REST or gRPC (gRPC Remote Procedure Call) clients, a JPA (Jakarta Persistence API)/Hibernate repository, and an event publisher.
+      - Dependencies include user, product inventory, and payment microservices, plus external payment, tax, and shipping services.
+      - PostgreSQL stores data, Redis provides caching, and Kafka carries events.
+  - **Business stakeholders:** Business value, user journeys, and system capabilities.
+  - **Operations teams:** Operational impact, failure modes, and scaling characteristics.
+    - **Online store example:** Web, mobile, administrator, and vendor interfaces connect through an API gateway.
+      - Core services handle users, products, orders, inventory, carts, and search.
+      - Infrastructure includes a message queue, analytics pipeline, monitoring, logging, and a CDN (Content Delivery Network).
+      - Data stores include user, order, and product databases, a session cache, a search index, and image storage.
+- **Choose diagrams according to the question being answered.**
+  - **Sequence diagrams:** Show synchronous interactions step by step, such as a user action triggering connection checks, asset loading, and dependency calls.
+    - Event-driven flows with multiple consumers can become difficult to follow in this format.
+  - **Data flow or event flow diagrams:** Show how information moves asynchronously between decoupled components.
+    - Example: An occupancy sensor publishes data through an event bus to multiple consumers.
+  - **Solution architecture diagrams:** Show the overall system, major components, data sources and destinations, and external dependencies.
+    - Useful for executive briefings and onboarding new team members.
+- **Choose diagramming tools that fit the workflow.**
+  - **Visual tools:** Visio suits Microsoft environments, Miro supports collaborative whiteboarding, and draw.io provides a free browser-based option.
+    - Useful for quick sketches, real-time collaboration, and presentation-ready diagrams.
+  - **Diagram as code:** Mermaid and D2 express diagrams as plain text and generate consistent visuals.
+    - Update diagrams by editing text stored alongside code; Git history tracks architectural changes.
+    - Generate documentation diagrams through CI/CD (Continuous Integration/Continuous Delivery) pipelines to keep them aligned with the system.
+
+![Sequence Diagrams Example](./assets/sequence_diagrams.png)
+
+![Event Flow Diagrams Example](./assets/event_flow_diagrams.png)
+
+![System Architecture Diagrams Example](./assets/system_architecture_diagrams.png)
+
+![Diagram for Technical Team Members](./assets/diagram_technical.jpeg)
+
+![Diagram for Operations Teams](./assets/diagram_operations.jpeg)
+
+### Mermaid
+
+- **Mermaid creates diagrams from human-readable plain text.** Its syntax remains understandable without rendering.
+  - Keep diagram source in Markdown documentation alongside application code.
+  - Track changes in version control and review them in pull requests.
+  - Embedded source avoids separate binary diagram files, missing originals, and broken links to exported diagrams.
+- **Each diagram type has its own syntax with consistent patterns.**
+  - **Flowcharts:** `A --> B` connects two nodes.
+  - **Sequence diagrams:** `Alice->>Bob: Hello` sends a labeled message.
+  - **Class diagrams:** `Vehicle <|-- Car` indicates that `Car` inherits from `Vehicle`.
+- **Use a text editor or IDE (Integrated Development Environment) to write diagrams.** A browser or editor plugin is optional for previewing them.
+  - The [Mermaid Live Editor](https://mermaid.live/) provides live previews while editing.
+  - Embed diagrams in fenced `mermaid` code blocks for supported Markdown renderers, including GitHub, GitLab, Notion, and documentation sites.
+  - IDEs such as Visual Studio Code may need an extension; Markdown support alone does not guarantee Mermaid rendering.
+  - Rendered diagrams can use SVG (Scalable Vector Graphics).
+- **Mermaid prioritizes simplicity and Markdown integration over visual polish.** Try it alongside the next diagramming tool to compare their fit for your workflow.
+- **Example: Remotely change an HVAC (Heating, Ventilation, and Air Conditioning) system's temperature.**
+  - `flowchart LR` sets a left-to-right layout; square brackets define actions, braces define decisions, and labeled arrows distinguish outcomes.
+  - The diagram below shows validation, authorization, availability checks, command execution, and the final user message.
+
+![Mermaid Basics](./assets/mermaid_basics.png)
+
+```mermaid
+flowchart LR
+    Request[User requests a temperature change] --> Range{Temperature in valid range?}
+    Range -->|Yes| Auth{User authorized?}
+    Range -->|No| Invalid[Invalid temperature error]
+    Auth -->|Yes| Online{Device online?}
+    Auth -->|No| Denied[Authorization error]
+    Online -->|Yes| Command[Issue temperature command]
+    Online -->|No| Offline[Device offline error]
+    Command --> Success[Confirmation message]
+    Invalid --> Display[Display result to user]
+    Denied --> Display
+    Offline --> Display
+    Success --> Display
+```
+
+### D2: Declarative Diagramming
+
+- **D2 (Declarative Diagramming) creates diagrams from text, emphasizing expressiveness and visual polish.**
+  - Suitable for publication-quality architecture documentation and executive presentations.
+  - Source files remain version controlled alongside code.
+  - Offers more styling control than simpler tools, with a steeper learning curve; start with boxes and arrows and refine them incrementally.
+- **Use a text editor and the standalone D2 command-line tool.** See the [installation guide](https://d2lang.com/tour/install/) for platform-specific instructions.
+  - Installation options include Homebrew on macOS, the shell installer on Linux, Scoop on Windows, and building from source with Go.
+  - Verify installation with `d2 --version`.
+  - Save source as `diagram.d2` and render it to SVG (Scalable Vector Graphics), PNG (Portable Network Graphics), or PDF (Portable Document Format).
+  - Use `--watch` to regenerate diagrams as source changes.
+  - Integrate rendering into CI/CD (Continuous Integration/Continuous Delivery) pipelines and static documentation sites.
+- **Describe structure and appearance declaratively.**
+  - Connections use `frontend -> backend`; add text after a colon to label components or interactions.
+  - Curly braces group related components into nested containers.
+  - Properties control shapes, fill and stroke colors, fonts, icons, and themes.
+  - Images can come from remote HTTP (Hypertext Transfer Protocol) URLs or local files, including SVG assets mixed with built-in shapes.
+  - Grids arrange components into rows or columns, with placement inferred from the declared structure and constraints.
+- **Select a layout engine with `--layout`.** Available features depend on the engine.
+  - **Dagre:** Free, default engine for directed, hierarchical layouts.
+  - **ELK:** Free alternative for directed graph layouts.
+  - **TALA:** Proprietary Terrastruct engine installed separately, designed for software architecture diagrams.
+    - Supports explicit `top` and `left` coordinates to fix object positions while arranging other elements around them.
+- **Example: An API (Application Programming Interface) gateway routes requests to backend services.** The examples below show labeled connections and component styling in D2 and Mermaid.
+
+![D2 Syntax Basics](./assets/d2_syntax_basics.png)
+
+![D2 Example](./assets/d2_example.png)
+
+![D2 Rendering](./assets/d2_rendering.png)
+
+![D2 Example 2](./assets/d2_example_2.png)
+
+Installation alternatives; choose the command for your environment:
+
+```sh
+# macOS with Homebrew
+brew install d2
+# Linux with the shell installer
+curl -fsSL https://d2lang.com/install.sh | sh -s --
+# Windows with Scoop
+scoop install d2
+# From source (requires Go)
+go install github.com/d2lang/d2@latest
+```
+
+Save this D2 example as `diagram.d2`:
+
+```d2
+direction: right
+client: Client
+gateway: API Gateway {
+  shape: hexagon
+  style.fill: "#dbeafe"
+  style.stroke: "#2563eb"
+}
+services: Backend services {
+  users: User Service
+  orders: Order Service
+}
+client -> gateway: Request
+gateway -> services.users: User requests
+gateway -> services.orders: Order requests
+```
+
+```sh
+d2 --version
+d2 diagram.d2 diagram.svg
+d2 diagram.d2 diagram.png
+d2 diagram.d2 diagram.pdf
+d2 --layout elk diagram.d2 diagram.svg
+d2 --watch diagram.d2 diagram.svg
+```
+
+Equivalent Mermaid example for Markdown rendering:
+
+```mermaid
+flowchart LR
+    Client[Client] -->|Request| Gateway{{API Gateway}}
+    subgraph Services[Backend services]
+        Users[User Service]
+        Orders[Order Service]
+    end
+    Gateway -->|User requests| Users
+    Gateway -->|Order requests| Orders
+    style Gateway fill:#dbeafe,stroke:#2563eb
+```
+
+### Extra: Excalidraw
+
+- **Excalidraw is a visual whiteboard for sketching diagrams with a hand-drawn appearance.** Use it for architecture discussions, component overviews, and early design ideas.
+- **Install the VS Code (Visual Studio Code) extension.**
+  - Open Extensions with `Ctrl+Shift+X`, search for **Excalidraw**, and install the extension with identifier `pomdtr.excalidraw-editor` ([Marketplace listing](https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor)).
+- **Create a drawing inside the repository.**
+  - In Explorer, create an empty file such as `assets/order-flow.excalidraw` and open it.
+  - The extension opens an interactive canvas; if another editor opens, right-click the file and use **Open With...** to select Excalidraw.
+  - Use rectangles for services, diamonds for decisions, arrows for interactions, and text for labels.
+  - Example: Draw `Client --> API Gateway --> Order Service`, then connect the order service to a database.
+  - Select elements to adjust colors, borders, and text; group related components to keep the diagram readable.
+  - Save with `Ctrl+S` and commit the drawing with the documentation it explains.
+- **Choose a format according to how the drawing will be used.**
+  - `.excalidraw` is the native file format and stores editable scene data as JSON (JavaScript Object Notation).
+  - For a straightforward workflow, keep this source file and use the canvas export menu to export a separate `.svg` or `.png` image for documentation.
+  - After changing the source drawing, export the image again and commit both files.
+  - Alternatively, the VS Code extension supports `.excalidraw.svg` and `.excalidraw.png`: images with embedded scene data that remain editable, combining source and documentation image in one file.
+  - Prefer SVG (Scalable Vector Graphics) for sharp diagrams at different sizes; use PNG (Portable Network Graphics) when a raster image is needed.
+  - The editor toolbar lets you switch between the canvas and the underlying text or image.
+  - Arbitrary SVG or PNG images do not become editable Excalidraw scenes simply by renaming them; they need embedded scene data.
+- **Embed the exported image in Markdown using a relative path.** The example below assumes the drawing is in `assets` beside the README.
+
+```markdown
+![Order request flow](./assets/order-flow.svg)
+```
+
+Extension reference: [Excalidraw for VS Code](https://github.com/excalidraw/excalidraw-vscode).
+
+### Communicating Sequences
 
 ## Microservices and Modular Design Patterns
 
