@@ -41,6 +41,13 @@ Table of contents:
     - [Form Systems to Services: Exercise](#form-systems-to-services-exercise)
     - [Microservices: The Good, The Bad, and The Ugly](#microservices-the-good-the-bad-and-the-ugly)
     - [Exercise: Monoliths vs. Microservices](#exercise-monoliths-vs-microservices)
+    - [How Do I Make My Service Micro?](#how-do-i-make-my-service-micro)
+    - [Communicating Microservices](#communicating-microservices)
+    - [Exercise: Moving to Microservices](#exercise-moving-to-microservices)
+    - [Microservice Patterns: Resilience](#microservice-patterns-resilience)
+    - [Microservice Patterns: Consistency](#microservice-patterns-consistency)
+    - [Microservice Patterns: Performance](#microservice-patterns-performance)
+    - [Microservice Patterns: Exercise](#microservice-patterns-exercise)
   - [Cloud-Native Architectural Patterns](#cloud-native-architectural-patterns)
   - [Data and AI Architecture Patterns](#data-and-ai-architecture-patterns)
   - [Distributed Architecture Patterns](#distributed-architecture-patterns)
@@ -1133,6 +1140,209 @@ graph TB
   - Distributed infrastructure setup and ongoing operations could exceed the team's capacity and delay shipping.
   - Starting with microservices can be justified by well-understood domains, validated use cases, and strong operational expertise; those conditions are absent here.
   - Revisit the decision as the business, product, and team mature; extract services when their benefits justify the costs.
+
+### How Do I Make My Service Micro?
+
+- **Migrate incrementally once team capacity, operational maturity, and concrete needs justify microservices.** Keep the business running while replacing selected parts of the monolith.
+- **Use the Strangler Fig pattern to extract one capability at a time.**
+  - Choose isolated, well-understood functionality whose failure has limited business impact, such as notifications, report generation, or noncritical audit logging.
+  - Build it as a separate service, then route the relevant requests or API (Application Programming Interface) paths to it.
+  - Feature flags can control whether the new implementation receives requests.
+  - Repeat as appropriate; the original system can eventually be retired if its responsibilities are fully replaced.
+  - The payment-extraction image illustrates the mechanism; business-critical payments need not be the safest first candidate.
+- **Size services around cohesive business capabilities rather than lines of code or technical layers.**
+  - Keep related logic and its data together instead of separating API, business logic, and data access into different services.
+  - Aim for high cohesion within services and low coupling between them, allowing independent deployment without coordinated releases.
+  - A service should be understandable and maintainable by its team while delivering meaningful business value.
+- **Use DDD (Domain-Driven Design) to find natural boundaries and divide shared data ownership.**
+  - Identify bounded contexts, within which domain terms and business rules have specific meanings.
+  - Illustrative ownership:
+    - **User Service:** Profiles, authentication tokens, and preferences.
+    - **Inventory Service:** Product information, stock levels, and supplier data.
+    - **Order Service:** Order history, shipping addresses, and payment records.
+  - Avoid boundaries that require extensive database queries across services.
+  - Expect to refine early decisions as domain understanding improves; the image moves order history from the User database to the Order database.
+  - Avoid premature fragmentation: splitting later is often easier than repairing poorly chosen boundaries.
+- **Plan compatibility and rollback while old and new implementations coexist.**
+  - Use a canary deployment to expose the new service to a small percentage of users, monitoring errors and performance before expanding or reverting.
+  - Simple weighted load balancing can provide gradual traffic routing when a full canary setup is unavailable.
+  - Example progression: 5%, 20%, 50%, then 100% of relevant traffic once behavior and capacity are satisfactory.
+  - Learn from each extraction and improve operational capabilities along the way; rushing can produce a distributed system harder to manage than the original monolith.
+
+![Monolith to Microservices](./assets/monolith_to_microservice.png)
+
+![Monolith to Microservices Step by Step](./assets/monolith_to_microservices_step.png)
+
+![Domain-Driven Design (DDD): Database Partitions](./assets/ddd_database_partitions.png)
+
+![Service Boundaries](./assets/service_boundaries.png)
+
+![Gradually Route Traffic](./assets/gradually_route_traffic.png)
+
+Additional material:
+
+- [Strangler Fig Pattern - Martin Fowler](https://martinfowler.com/bliki/StranglerFigApplication.html)
+- [Domain Driven Design - Microsoft](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/ddd-oriented-microservice)
+
+### Communicating Microservices
+
+- **Microservices distribute decision-making as well as code, making human coordination essential.**
+  - An authentication change that one monolith team could implement, test, and deploy may require agreement across user, order, notification, and recommendation teams.
+- **Conway's Law:** System architecture tends to reflect the organization's communication structure.
+  - Teams that rarely communicate risk producing services that integrate poorly.
+  - One team managing many services may take coordination shortcuts that introduce tight coupling.
+  - Treat organizational structure and service design as connected concerns; technical patterns cannot compensate for ineffective collaboration.
+- **Adapt explanations to the audience.**
+  - **Executives:** Connect architectural decisions to delivery speed, team scalability, and operational costs.
+  - **Developers:** Explain service boundaries, API (Application Programming Interface) contracts, and integration patterns.
+    - Record why boundaries exist so future developers can decide where new features belong, such as in a User Service or a Profile Service.
+- **Maintain living documentation as the system changes.**
+  - **Service maps:** Show dependencies and failure impact; the example maps the Order Service's dependencies on User, Product, Payment, and Notification services.
+    - Answer questions such as what breaks if Payment fails and how user registration flows through the system.
+    - Support onboarding, incident response, and capacity planning.
+  - **Automatically tested API contracts:** Check that service interactions remain compatible.
+  - **ADRs (Architectural Decision Records):** Preserve the reasoning behind design choices over time.
+- **Use communication to assess the design.** Difficulty explaining a simple user action can signal poor service boundaries or excessive decomposition.
+  - Dense dependency maps or a lengthy, multi-diagram explanation of registration are reasons to reconsider the design.
+  - Share context continuously and discuss uncertain tasks together to keep decisions aligned across teams.
+
+![Conway's Law](./assets/conways_law.png)
+
+![Service Maps](./assets/service_maps.png)
+
+Further reading: [Conway's Law](https://martinfowler.com/bliki/ConwaysLaw.html)
+
+### Exercise: Moving to Microservices
+
+- **Scenario:** QuickBite, a fast-casual restaurant chain, runs a legacy monolith covering menu management, cashier and kiosk orders, kitchen displays, loyalty points and discounts, receipts, and credit-card payments.
+  - Even a menu-price change requires full redeployment, creating risk and downtime during busy lunch periods.
+  - Planned capabilities include mobile online ordering and a personalized loyalty program.
+- **Task:** Design a phased migration that preserves existing functionality.
+  - Choose the first extraction based on high value, low risk, and minimal dependencies.
+  - Explain how the monolith retrieves current menu items and prices during the transition.
+  - Propose at least three eventual services, defining each bounded context, responsibilities, and exclusively owned data.
+- **Solution: Extract Menu Service first.**
+  - Its responsibility and consumers are clear, complexity is relatively low, and routine restaurant use mainly reads its data.
+  - It avoids starting with payment processing, whose failure could stop business operations.
+  - Store menu items and prices in a separate, service-owned database so price changes become data updates rather than application redeployments.
+  - Use the extraction to validate migration patterns and demonstrate business value before tackling more complex functions.
+- **Apply the Strangler Fig pattern:** Replace monolith capabilities incrementally while keeping familiar interfaces available to existing callers.
+  - Adapt the monolith's existing menu interface to delegate requests to the new service behind the scenes.
+  - Other monolith components continue using that interface while receiving the latest menu data from the service.
+- **Candidate service boundaries:**
+  - **Menu Service:** Creates, updates, and displays menu items and prices, owning the menu database described above.
+  - **Order Service:** Handles cashier and kiosk order creation; reuse suitable existing code and interfaces to preserve the user experience.
+  - **Kitchen Service:** Coordinates preparation and kitchen displays by subscribing to order events.
+  - **Loyalty Service:** Tracks points and applies discounts, primarily reacting to order events; some features may require additional interactions.
+  - **Payment/Receipt Service:** Processes credit-card payments and generates receipts; reliability is critical to continued sales.
+- **Add mobile ordering as a new service after validating the approach, potentially as the second or third extraction.**
+  - Reuse the migration interfaces and patterns rather than adding this capability to the monolith being replaced.
+  - The final diagram combines an Order Service, an event bus, kitchen and menu services, mobile ordering, and payment processing.
+
+![QuickByte Problem](./assets/quickbyte_problem.png)
+
+![QuickByte Services](./assets/quickbyte_services.png)
+
+![QuickByte Microservices](./assets/quickbyte_microservices.png)
+
+### Microservice Patterns: Resilience
+
+- **Design for partial failure:** Dependencies can fail or slow down, so contain problems and preserve useful functionality rather than allowing cascading outages.
+- **Circuit breaker:** Stop repeatedly calling a failing dependency, such as a payment service returning errors or timing out.
+  - **Closed:** Allow calls and track failures; crossing the failure threshold opens the circuit.
+  - **Open:** Fail fast rather than consuming resources while waiting; use a fallback when appropriate.
+  - **Half-open:** After a cooldown, allow limited test calls; recovery closes the circuit, while further failures reopen it.
+    - The image labels this state "Limited Closed."
+- **Bulkhead:** Isolate resource pools or budgets for different operations so one workload cannot exhaust capacity needed by another.
+  - Separate thread pools, connection pools, and memory allocations where isolation is needed.
+  - Example: Slow report generation should not block critical authentication requests by consuming all shared resources.
+- **Timeouts:** Limit waiting so stalled requests do not hold resources indefinitely.
+  - Too short rejects legitimate slow responses; too long allows slow dependencies to degrade the wider system.
+- **Retries:** Recover from transient failures without overwhelming a struggling service.
+  - Too many attempts amplify load; too few abandon recoverable operations prematurely.
+  - **Exponential backoff:** Increase the delay between successive attempts.
+  - **Jitter:** Randomize those delays to spread retries over time, avoiding synchronized load spikes known as the thundering herd problem.
+- **Meaningful health checks:** Assess whether a service can perform its role, beyond whether its web server returns an "OK" response.
+  - Check database connectivity, dependency reachability, and queue backlogs.
+  - Distinguish healthy, degraded-but-functional, and unavailable states; orchestration systems can route traffic away from instances unable to serve requests.
+  - SRE (Site Reliability Engineering) practices and SLOs (Service Level Objectives) help assess service quality beyond a binary health status.
+- **Graceful degradation:** Coordinate engineering and user-experience decisions so dependency failures reduce capabilities without breaking the whole experience.
+  - Use cached data, defaults, or reduced feature sets when appropriate.
+  - Replace unavailable personalized recommendations with popular products.
+  - Omit slow reviews from product listings while retaining them on detail pages.
+
+![Circuit Breaker Pattern](./assets/circuit_breaker_pattern.png)
+
+![Bulkhead Pattern](./assets/bulkhead_pattern.png)
+
+![Retry Patterns](./assets/retry_patterns.png)
+
+![Health Checks](./assets/health_checks.png)
+
+Additional material:
+
+- [Circuit Breaker Pattern](https://martinfowler.com/bliki/CircuitBreaker.html)
+- [Site Reliability Engineering (or SRE)](https://sre.google/sre-book/introduction/)
+- [SLOs](https://sre.google/sre-book/service-level-objectives/)
+
+### Microservice Patterns: Consistency
+
+- **Separate databases turn cross-service updates into a coordination problem.** A monolith can update related records, such as profiles and order history, within one database transaction; independently owned stores do not share that transaction automatically.
+  - **ACID (Atomicity, Consistency, Isolation, Durability):** Transaction guarantees still apply within individual services; distributed transactions can extend coordination across stores at additional performance and complexity cost.
+  - **BASE (Basically Available, Soft State, Eventual Consistency):** An alternative approach allows temporary differences while updates propagate.
+    - Convergence requires reliable propagation and recovery logic; inconsistent data does not repair itself automatically.
+    - Use idempotent operations so retries do not repeat business effects, and account for processing delays.
+  - **CAP (Consistency, Availability, Partition Tolerance):** During a network partition, a distributed system cannot guarantee both linearizable consistency and availability for every request; this does not mean all microservices must abandon strong consistency.
+- **Saga:** Replace one cross-service transaction with a sequence of local transactions and compensating actions for completed steps when later work fails.
+  - Example: Reserve inventory, charge the credit card, then create a shipping record.
+    - If payment fails, release the inventory reservation.
+    - If shipping setup fails after payment, refund the charge and release inventory.
+  - Compensation restores an acceptable business outcome; it may require multiple actions rather than literally reversing each change.
+- **Event sourcing:** Store the sequence of state-changing events as the source of truth and reconstruct state by replaying them.
+  - Example for order `1001`: `OrderPlaced`, `PaymentProcessed`, `ItemsShipped`, then `OrderDelivered` yields the current status `Delivered`.
+  - Provides an audit trail and supports reconstructing historical states from the recorded events.
+  - Requires event-centered state handling and managed event storage and delivery.
+- **CQRS (Command Query Responsibility Segregation):** Separate models for state-changing commands and data-reading queries so each can be optimized independently.
+  - Writes may require strong consistency, while read views may tolerate staleness for higher throughput.
+  - Models can use different representations and scale independently; separate databases are optional ([CQRS reference](https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs)).
+  - Social-media example: Posting writes to a transaction-optimized database; profile views read from a query-optimized replica that may lag by seconds.
+- **Choose consistency guarantees according to business requirements.**
+  - **User preferences:** Often tolerate delayed propagation.
+  - **Shopping carts:** An item may become unavailable before checkout; revalidate stock there rather than locking inventory whenever someone adds it to a cart.
+  - **Permissions:** AWS (Amazon Web Services) IAM (Identity and Access Management) changes can take time to become visible; clients must account for propagation delays ([AWS reference](https://docs.aws.amazon.com/IAM/latest/UserGuide/troubleshoot.html)).
+  - **Financial transactions:** Need strong correctness guarantees; represent pending transfer steps explicitly rather than assuming money can safely disappear or be duplicated temporarily.
+  - **Safety-critical operations:** Need consistency and response-time guarantees appropriate to their safety requirements.
+  - Design user interactions to tolerate delay where acceptable and reserve stronger coordination for invariants that require it.
+
+![Data Consistency](./assets/data_consistency.png)
+
+![ACID vs BASE](./assets/acid_vs_base.png)
+
+![Saga Pattern: Idea](./assets/saga_pattern_idea.png)
+
+![Saga Pattern: Example](./assets/saga_pattern_example.png)
+
+![Event Sourcing: Example](./assets/event_sourcing_example.png)
+
+![Event Sourcing: Advantages and Requirements](./assets/event_sourcing_advantages.png)
+
+![CQRS Concept](./assets/cqrs_concept.png)
+
+![CQRS Example: Social Media](./assets/cqrs_example_social_media.png)
+
+Additional material:
+
+- [Event Sourcing Pattern - Martin Fowler](https://martinfowler.com/eaaDev/EventSourcing.html)
+- [CQRS Pattern - Martin Fowler](https://martinfowler.com/bliki/CQRS.html)
+- [ACID Principles](https://www.databricks.com/glossary/acid-transactions)
+- [BASE Principles](https://devonblog.com/software-development/base-principles/)
+- [CAP Theorem](https://robertgreiner.com/cap-theorem-revisited/)
+
+### Microservice Patterns: Performance
+
+
+### Microservice Patterns: Exercise
+
 
 ## Cloud-Native Architectural Patterns
 
