@@ -30,7 +30,17 @@ Table of contents:
     - [Communicating Sequences](#communicating-sequences)
     - [Sequence Diagrams: Exercise](#sequence-diagrams-exercise)
     - [Communicating Events](#communicating-events)
+    - [Event Diagrams: Exercise](#event-diagrams-exercise)
+    - [System Architecture](#system-architecture)
+    - [System Architecture: Exercise](#system-architecture-exercise)
+      - [HVAC System Sequence Diagram](#hvac-system-sequence-diagram)
+      - [HVAC System Event Flow Diagram](#hvac-system-event-flow-diagram)
+      - [HVAC System Architecture Diagram](#hvac-system-architecture-diagram)
   - [Microservices and Modular Design Patterns](#microservices-and-modular-design-patterns)
+    - [From Systems to Services](#from-systems-to-services)
+    - [Form Systems to Services: Exercise](#form-systems-to-services-exercise)
+    - [Microservices: The Good, The Bad, and The Ugly](#microservices-the-good-the-bad-and-the-ugly)
+    - [Exercise: Monoliths vs. Microservices](#exercise-monoliths-vs-microservices)
   - [Cloud-Native Architectural Patterns](#cloud-native-architectural-patterns)
   - [Data and AI Architecture Patterns](#data-and-ai-architecture-patterns)
   - [Distributed Architecture Patterns](#distributed-architecture-patterns)
@@ -701,7 +711,428 @@ sequenceDiagram
 
 ![Event Choreography Pattern](./assets/event_choreography.png)
 
+### Event Diagrams: Exercise
+
+- **Scenario:** An occupancy sensor estimates the number of people in a room. The HVAC (Heating, Ventilation, and Air Conditioning) system uses this reading to adjust lighting and air-conditioning targets for staff comfort and records occupancy history to assess room usage.
+- **Task:** Create a flowchart or data flow diagram showing the data packet's asynchronous journey from its source to storage.
+  - Highlight handoffs between services; physical devices can take time to act, so avoid implying synchronous request-response calls.
+  - Use any suitable tool, including draw.io, Mermaid, or D2.
+- **Required components and responsibilities:**
+  - **Occupancy Sensor:** Produces the original reading.
+  - **Device Ingestion Service:** Receives raw device data.
+  - **Event Bus:** Brokers messages and decouples services.
+  - **Central Controller:** Consumes, validates, and transforms readings; applies preconfigured lighting and air-conditioning targets for the occupancy count; writes historical records.
+  - **Time-Series Database:** Stores the processed data over time.
+- **Solution approaches:** Choose the view that clearly communicates workflow ownership and event movement to the intended audience.
+  - **Orchestration:** A central workflow controller receives inputs, coordinates processing, and uses service outputs to trigger subsequent steps.
+    - It may contain business logic; coordination still happens through asynchronous events.
+    - The simplified image uses temperature and humidity sensors: the HVAC Workflow Orchestrator sends data to an ML (Machine Learning) Analytics Service, receives results, controls the HVAC Controller, and receives device status.
+  - **Choreography:** Workflow logic is distributed among services that react to events and publish further events, including fan-out and feedback loops.
+    - The simplified image omits some sensor types to make the flow easier to trace.
+    - Temperature and occupancy events feed a Climate Analyzer, which signals cooling requirements to the HVAC Controller, demand spikes to the Energy Monitor, and critical temperatures to the Alert Manager.
+    - The HVAC Controller publishes status to the Building Dashboard and activation events to the Energy Monitor.
+    - Weather forecasts and occupancy priority updates also feed energy monitoring; usage patterns feed a Predictive Engine, which recommends pre-cooling to the HVAC Controller.
+    - Metrics update the dashboard, while alerts reach a Notification Service.
+  - A broker can carry events in either style; the distinction is where workflow decisions reside, rather than whether messages pass through centralized infrastructure.
+- **Check the exercise requirements against the examples.** The images illustrate broader climate-control workflows; your occupancy diagram must still show ingestion, the event bus, lighting adjustments, and historical time-series storage.
+
+![Simplified Orchestrator Event Flow Diagram](./assets/event_diagram_exercise.jpeg)
+
+![Choreograph-Style Event Flow Diagram](./assets/event_diagram_choreography_exercise.jpeg)
+
+### System Architecture
+
+- **System architecture diagrams map the technology landscape:** the major components, their responsibilities, and their relationships.
+  - Provide an overview of what exists and how it fits together; sequence and event flow diagrams describe interactions and event movement in greater detail.
+- **Include the architectural information relevant to the audience.**
+  - **Components and services:** The system's major building blocks.
+  - **Data flow and storage:** Where information lives and how it moves between systems, especially along critical business paths.
+  - **External dependencies:** Third-party services, APIs (Application Programming Interfaces), and integrations.
+  - **System boundaries:** Ownership and the distinction between components under your control and external systems.
+  - **Technology choices:** Databases, messaging systems, and cloud services.
+- **Choose the level of detail for the purpose.**
+  - **Executive briefings:** Explain capabilities, business objectives, technology strategy, and investment areas.
+  - **Onboarding engineers:** Provide a map of the overall landscape and where functions reside before examining individual components.
+  - **Integration planning:** Show partners and internal teams available interfaces, dependencies, and integration points.
+  - **Roadmaps:** Compare the current architecture with future states for migrations, evolution, and new capabilities.
+  - **Compliance and security reviews:** Help auditors and security teams assess the boundaries and data dependencies described above.
+- **Use visual structure to make the diagram readable.**
+  - Group related components or architectural layers with boxes, colors, or swim lanes.
+  - Emphasize critical user journeys and data paths to reveal important dependencies and potential bottlenecks.
+  - Keep the view streamlined: include what viewers need for shared understanding without overwhelming them with implementation details.
+  - Update diagrams as part of the documentation process and keep them in source control so they evolve with the system.
+- **Example: The same system at two levels of detail.**
+  - **Basic view:** Backend, load balancer, API, database, and storage.
+  - **Advanced view:** An API gateway connects frontends and external integrations to core services, with infrastructure and data stores shown separately.
+    - **Frontends:** Web store, mobile app, administrator portal, and vendor portal.
+    - **External integrations:** Shipping APIs, tax service, email provider, and fraud detection.
+    - **Core services:** Users, products, orders, inventory, carts, and search.
+    - **Infrastructure:** Message queue, analytics pipeline, monitoring, logging, and CDN (Content Delivery Network).
+    - **Data stores:** User, order, and product databases, a session cache, a search index, and image storage.
+
+![Key Characteristics of System Architecture Diagrams](./assets/system_architecture_diagrams_key_characteristics.jpeg)
+
+![Basic Versus Advanced Architecture Diagrams](./assets/system_architecture_basic_vs_advanced.jpeg)
+
+### System Architecture: Exercise
+
+- **Scenario:** External auditors need one high-level overview of the deployed security and HVAC (Heating, Ventilation, and Air Conditioning) system and its major relationships.
+- **Task:** Create a solution architecture diagram, using a component view or a C4-style container view, that distinguishes client requests from asynchronous messaging.
+  - Use draw.io, Mermaid, D2, or another suitable tool; keep the overview understandable without excessive technical detail.
+  - **Web Dashboard:** Provides user interaction.
+  - **API (Application Programming Interface) Gateway:** Supplies the single entry point for client applications.
+  - **Device Ingestion Service:** Receives sensor reports.
+  - **Event Bus:** Carries asynchronous messages between services.
+  - **Central Control Service:** Consumes, validates, and transforms readings; adjusts lighting and air-conditioning targets using preconfigured occupancy rules; writes historical records.
+  - **Data stores:** Include at least two database types, such as relational storage for user accounts and time-series storage for sensor data.
+- **Suggested architecture:** Devices stream data through a site-local gateway, which aggregates readings and forwards them to ingestion for possible preprocessing and storage.
+  - Time-series or analytical storage, such as Prometheus or ClickHouse in the lesson's examples, makes readings available to query services, analytics, and ML (Machine Learning) services.
+  - Distinct user personas can have separate interfaces behind the API gateway.
+  - External services and data sources enrich collected data and provide integration points.
+- **Provided solution samples cover three complementary views.** Alternative designs are valid when they communicate the required behavior and structure clearly.
+  - **Sequence:** A facilities manager changes three conference-room targets to 70°F; zone permissions and device mappings are checked, temperatures are validated against 65–75°F, commands run in parallel, and an audit record is created.
+    - A separate restricted-zone attempt returns HTTP (Hypertext Transfer Protocol) `403` before device changes.
+    - Controller acceptance confirms receipt of the command; it does not establish that a room has reached its target temperature.
+  - **Event flow:** Sensor and weather inputs feed an event platform; real-time analytics, historical processing, and prediction operate independently.
+    - Climate control, ventilation, alerts, and energy optimization publish outcomes, while dashboards receive live metrics and status updates.
+  - **Architecture:** Devices, edge translation and buffering, cloud services, storage, user interfaces, and external integrations form the overall deployed landscape.
+    - The sample below adds the required event bus and makes user-account access and historical storage explicit.
+- **Image context:** The attached solution image depicts an online store, so use it as a grouping and layout reference rather than an HVAC-specific solution.
+
+![System Architecture Solution](./assets/system_architecture_exercise.jpeg)
+
+#### HVAC System Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant FM as Facilities Manager
+    participant WD as Web Dashboard
+    participant ZA as Zone API
+    participant AS as Authorization Service
+    participant ZDB as Zone Database
+    participant HC as HVAC Controller
+    participant AUD as Audit Service
+
+    FM->>WD: Select zones [Conf-A, Conf-B, Conf-C] set temp to 70°F
+    WD->>ZA: POST /api/zones/bulk-temperature {zones: [...], temp: 70}
+    ZA->>AS: Verify user permissions for zones
+    AS->>AS: Check role and zone access rights
+    AS-->>ZA: Authorized for all zones
+
+    ZA->>ZDB: Get zone configurations for [Conf-A, Conf-B, Conf-C]
+    ZDB-->>ZA: Zone configs with device mappings
+    ZA->>ZA: Validate temperature within range (65-75°F)
+
+    par Conference A
+        ZA->>HC: Set temperature {device: "hvac-conf-a", temp: 70}
+        HC-->>ZA: Conf-A temperature command accepted
+    and Conference B
+        ZA->>HC: Set temperature {device: "hvac-conf-b", temp: 70}
+        HC-->>ZA: Conf-B temperature command accepted
+    and Conference C
+        ZA->>HC: Set temperature {device: "hvac-conf-c", temp: 70}
+        HC-->>ZA: Conf-C temperature command accepted
+    end
+
+    ZA->>AUD: Log bulk temperature change
+    AUD-->>ZA: Audit record created
+    ZA-->>WD: Success: All zones updated to 70°F
+    WD-->>FM: Display confirmation with zone status
+
+    Note over FM,AUD: Authorization failure case
+    FM->>WD: Attempt to control restricted zone
+    WD->>ZA: POST /api/zones/temperature {zone: "Server-Room", temp: 65}
+    ZA->>AS: Verify user permissions for Server-Room
+    AS-->>ZA: Access denied - insufficient privileges
+    ZA-->>WD: HTTP 403: Unauthorized for zone Server-Room
+    WD-->>FM: Error: Access denied for Server-Room
+```
+
+#### HVAC System Event Flow Diagram
+
+```mermaid
+graph TB
+    subgraph Data Sources
+        TS[Temperature Sensors]
+        HS[Humidity Sensors]
+        AQ[Air Quality Sensors]
+        OS[Occupancy Sensors]
+        WX[Weather API]
+    end
+
+    subgraph Ingestion Layer
+        SDI[Sensor Data Ingestion]
+    end
+
+    subgraph Event Platform
+        ESP[Event Streaming Platform]
+    end
+
+    subgraph Processing Engines
+        RTA[Real-time Analytics]
+        HDP[Historical Data Processor]
+        MLP[ML Prediction Service]
+    end
+
+    subgraph Response Systems
+        HCS[HVAC Control Service]
+        VCS[Ventilation Control Service]
+        AMS[Alert Management Service]
+        EOS[Energy Optimization Service]
+        BMD[Building Management Dashboard]
+    end
+
+    subgraph Storage
+        TSDB[(Time Series Database)]
+        ML_Store[(ML Model Store)]
+    end
+
+    %% Data ingestion flows
+    TS --> |temp.reading| SDI
+    HS --> |humidity.reading| SDI
+    AQ --> |air_quality.reading| SDI
+    OS --> |occupancy.detected| SDI
+    WX --> |weather.updated| SDI
+
+    SDI --> ESP
+
+    %% Real-time processing
+    ESP --> |sensor.*| RTA
+    ESP --> |weather.*| RTA
+
+    %% Historical processing
+    ESP --> |sensor.*| HDP
+    ESP --> |sensor.*| TSDB
+
+    %% ML processing
+    HDP --> |patterns.identified| MLP
+    TSDB --> MLP
+    MLP --> ML_Store
+
+    %% Response flows
+    RTA --> |climate.adjustment_needed| HCS
+    RTA --> |ventilation.adjustment_needed| VCS
+    RTA --> |threshold.exceeded| AMS
+    RTA --> |live.metrics| BMD
+
+    MLP --> |prediction.climate_demand| ESP
+    MLP --> |prediction.energy_usage| EOS
+
+    %% Secondary event flows
+    HCS --> |hvac.adjusted| ESP
+    VCS --> |ventilation.adjusted| ESP
+    AMS --> |alert.triggered| ESP
+    EOS --> |schedule.optimized| ESP
+
+    %% Dashboard updates
+    ESP --> |hvac.adjusted| BMD
+    ESP --> |alert.triggered| BMD
+    ESP --> |schedule.optimized| BMD
+```
+
+#### HVAC System Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph External
+        WS[Weather API]
+        EP[Energy Pricing]
+        ES[Emergency Services]
+        CORP[Corporate Systems]
+    end
+
+    subgraph Devices
+        SENS[Environmental Sensors]
+        SEC[Security Devices]
+        HVAC[HVAC/Lighting]
+        ENERGY[Energy Systems]
+    end
+
+    subgraph Edge
+        GW[Edge Gateway]
+        TRANS[Protocol Translation]
+        BUFF[Local Buffer]
+    end
+
+    subgraph Cloud
+        INGEST[Device Ingestion Service]
+        BUS[Event Bus]
+
+        subgraph Services
+            API[API Gateway]
+            AUTH[Auth Service]
+            HVAC_SVC[Central Control Service]
+            SEC_SVC[Security Service]
+            ANALYTICS[Analytics/ML]
+        end
+
+        subgraph Storage
+            TSDB[(Time Series DB)]
+            RDB[(Relational DB)]
+            CACHE[(Cache)]
+        end
+    end
+
+    subgraph Apps
+        OPS[Operations Dashboard]
+        MOBILE[Mobile App]
+        EXEC[Executive Portal]
+        TENANT[Tenant Portal]
+    end
+
+    %% Device to Edge
+    SENS --> GW
+    SEC --> GW
+    HVAC --> GW
+    ENERGY --> GW
+
+    %% Edge Processing
+    GW --> TRANS
+    TRANS --> BUFF
+    BUFF --> INGEST
+
+    %% External Data
+    WS --> INGEST
+    EP --> INGEST
+
+    %% Data Flow to Storage
+    INGEST -->|Sensor readings| BUS
+    BUS -->|Readings to validate and transform| HVAC_SVC
+    BUS -->|Sensor events| ANALYTICS
+    HVAC_SVC -->|Control events| BUS
+    BUS -->|Device commands| GW
+    GW --> HVAC
+
+    %% App Layer
+    OPS --> API
+    MOBILE --> API
+    EXEC --> API
+    TENANT --> API
+
+    %% API routing
+    API --> AUTH
+    API --> HVAC_SVC
+    API --> SEC_SVC
+    API --> ANALYTICS
+
+    %% Service data access
+    HVAC_SVC -->|Processed sensor history| TSDB
+    AUTH -->|User accounts and permissions| RDB
+    SEC_SVC --> RDB
+    ANALYTICS --> TSDB
+    HVAC_SVC --> CACHE
+
+    %% External integrations
+    SEC_SVC --> ES
+    API --> CORP
+
+    %% Analytics outputs
+    ANALYTICS --> EXEC
+```
+
 ## Microservices and Modular Design Patterns
+
+### From Systems to Services
+
+- **Choosing between a monolith and separate services involves trade-offs.** Evaluate development speed, deployment, scaling, and operational complexity against business needs.
+- **Monolith:** Packages functionality into one application deployed as a unit.
+  - In the example, user authentication, product catalog, shopping cart, and payment processing share a database.
+  - Supports fast development, straightforward deployment, and debugging within one system.
+  - Updating payment processing requires redeploying the whole application.
+  - Scaling for heavy product-search traffic also scales other functionality, such as authentication, even when it does not need extra capacity.
+- **Services:** Separate specialized responsibilities so they can be deployed and scaled individually.
+  - Increase the number of systems and deployments to manage; splitting one application into five services means operating five deployments.
+  - Replace internal method calls across the extracted boundaries with network calls that can fail, time out, or respond slowly.
+- **Selective extraction is a valid middle ground.** Keep most functionality together when it has similar needs and separate only the part that benefits from independence.
+  - Example: Extract payment processing while authentication, the catalog, and the cart remain in the monolith.
+- **Choose according to team size, operational capabilities, scaling needs, and tolerance for complexity.** A practical architecture that meets business requirements is more valuable than pursuing technical perfection.
+
+![Microservices Idea Tradeoff](./assets/microservices_idea_tradeoff.png)
+
+![Microservices Alternative](./assets/microservices_alternative.png)
+
+### Form Systems to Services: Exercise
+
+- **Task:** As SimpleShop's lead architect, identify the limitations of its growing e-commerce monolith and propose a service-oriented structure.
+  - The original codebase handles accounts, login, and profiles; product browsing, inventory, and search; cart updates; checkout, taxes, shipping, and payments; confirmation emails and shipping notifications.
+- **Problems to address:**
+  - **Development speed:** Tight coupling allows small changes to break unrelated functionality, creating fear of changes and slowing feature delivery.
+  - **Deployment risk:** Every update redeploys the whole application; the scenario's deployment process also requires downtime.
+  - **Database contention:** User, product, and order functions compete for one shared database during peak shopping periods.
+  - **Scaling inefficiency:** Extra product-catalog traffic requires scaling the whole application, wasting resources on less-busy functions.
+- **Proposed solution: Five focused services, each owning its data, logic, and reasons to change.**
+  - **User Service:** Accounts, authentication, and profiles.
+  - **Product Service:** Catalog, inventory, and search.
+  - **Cart Service:** Adding, removing, and updating cart items.
+  - **Order Service:** Checkout coordination and payment processing through a payment provider.
+  - **Notification Service:** Order confirmations and shipping updates.
+  - An API (Application Programming Interface) gateway provides client access, and an event bus carries background messages.
+- **Checkout combines two communication patterns.**
+  - **Synchronous calls provide immediate answers:** The user submits an order through the gateway; the Order Service retrieves cart contents, validates inventory with the Product Service, and processes payment.
+    - The frontend can make its request asynchronously to remain responsive while the backend follows this request-response flow.
+  - **Asynchronous events trigger background work:** After payment, the Order Service publishes `OrderCreated`; the Product Service updates inventory counts, and the Notification Service sends a confirmation email when it consumes the event.
+  - **Image variation:** The checkout image shows a separate Payment Service, whereas the five-service proposal keeps payment responsibility in the Order Service.
+- **Benefits and trade-offs:** Independent boundaries let the team scale the Product Service for Black Friday or update payment handling without redeploying unrelated services.
+  - Distributed coordination adds complexity; tightly connected synchronous operations may be better kept within one larger service.
+  - Extract only the responsibilities whose independence justifies the added operational cost.
+
+![Microservices Exercise](./assets/microservices_exercises.png)
+
+![Microservices Exercise Checkout Flow](./assets/microservoces_exercise_checkout_flow.png)
+
+[Single Responsibility Principle](http://objectmentor.com/resources/articles/srp.pdf)
+
+### Microservices: The Good, The Bad, and The Ugly
+
+- **The good: Independent services can support technical and organizational growth.**
+  - **Deployment:** Fix and redeploy a payment service without redeploying user management or the product catalog.
+  - **Scaling:** Allocate additional capacity to the services that need it.
+  - **Team autonomy:** Teams own services end to end and choose technologies suited to their responsibilities.
+    - Examples: Python with TensorFlow for recommendations, or Go for performance-sensitive order processing, without requiring one company-wide language or framework.
+  - **Fault isolation:** Well-designed boundaries can contain a service failure so it does not bring down the whole system.
+- **The bad: Distribution adds operational complexity.**
+  - Network calls across service boundaries introduce latency, timeouts, and partial failures in place of local method calls.
+    - Teams need monitoring, logging, distributed tracing, circuit breakers, and retries, along with the skills to operate them.
+  - Debugging an unsuccessful order can require correlating behavior across user, inventory, payment, and notification services.
+    - Consistent logging helps reconstruct failures that span several systems.
+  - Deployment coordination and testing across services become harder; running the entire system locally can become impractical.
+  - Distributed data often needs eventual-consistency patterns instead of one shared ACID (Atomicity, Consistency, Isolation, Durability) transaction across the workflow.
+- **The ugly: Costs can outweigh benefits when adoption is premature or ownership is misaligned.**
+  - Three developers maintaining five services may gain little independence while taking on substantial distributed-system overhead.
+  - One team responsible for every service captures fewer organizational benefits than teams with clear service ownership.
+  - Simple applications and organizations without sufficient operational maturity are poor candidates for unnecessary decomposition.
+- **Choose based on current constraints and demonstrated needs.**
+  - Evaluate whether team capacity and DevOps (Development and Operations) practices can support multiple independently operated services.
+  - Look for concrete needs for the deployment, scaling, and technology autonomy described above.
+  - For many startups and small teams, a well-built monolith is more practical; extract services later when the benefits justify the costs.
+  - Architecture should help the business ship today rather than imitate a much larger company's anticipated needs.
+
+![Microservices Pros and Cons](./assets/microservices_pros_cons.png)
+
+### Exercise: Monoliths vs. Microservices
+
+- **Scenario:** CampusEvent is a newly funded startup helping university students discover and register for campus events.
+  - **Features:** Clubs and departments create, edit, and publish listings; student registrations are tracked; organizers view attendance and other metrics.
+  - **Differentiator:** Recommendations based on student interests and past registrations.
+  - **Future capability:** Ticket purchases for paid events.
+  - **Constraints:** Three developers, limited distributed-systems operational experience, and pressure to deliver an MVP (Minimum Viable Product) quickly to validate the concept.
+- **Task:** Justify both an initial monolith and microservices from the start, considering current constraints and the long-term independence of recommendations and payments.
+- **Case for a monolith:**
+  - The small team can collaborate closely without needing separate service ownership.
+  - Local function calls simplify development, debugging through a single stack trace, and testing without distributed test environments or mocked service interactions.
+  - One deployment and runtime reduce the work required to build, host, expose, connect, and observe the application.
+    - The team can instrument a system it understands holistically rather than spread its knowledge across several services.
+- **Case for microservices:**
+  - **Recommendation Engine:** Iterate, deploy, and scale independently, reducing the impact of changes on other features.
+    - Could later be offered as a standalone API (Application Programming Interface) product.
+  - **Future payment or ticket-sales service:** Give new developers focused ownership without requiring them to learn the entire application.
+  - On-demand compute models, such as FaaS (Function as a Service), may offer cost benefits as suitable workloads scale.
+- **Solution: Start with a monolith.**
+  - The unproven product needs market validation and delivery speed more urgently than the flexibility described above.
+  - Service boundaries are still uncertain: recommendations, payments, and users are candidate divisions that actual usage and domain knowledge must validate.
+  - Distributed infrastructure setup and ongoing operations could exceed the team's capacity and delay shipping.
+  - Starting with microservices can be justified by well-understood domains, validated use cases, and strong operational expertise; those conditions are absent here.
+  - Revisit the decision as the business, product, and team mature; extract services when their benefits justify the costs.
 
 ## Cloud-Native Architectural Patterns
 
