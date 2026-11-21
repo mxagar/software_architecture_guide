@@ -28,6 +28,8 @@ Table of contents:
     - [D2: Declarative Diagramming](#d2-declarative-diagramming)
     - [Extra: Excalidraw](#extra-excalidraw)
     - [Communicating Sequences](#communicating-sequences)
+    - [Sequence Diagrams: Exercise](#sequence-diagrams-exercise)
+    - [Communicating Events](#communicating-events)
   - [Microservices and Modular Design Patterns](#microservices-and-modular-design-patterns)
   - [Cloud-Native Architectural Patterns](#cloud-native-architectural-patterns)
   - [Data and AI Architecture Patterns](#data-and-ai-architecture-patterns)
@@ -70,7 +72,8 @@ Table of contents:
 Some components:
 
 - **API gateway:** An entry point for client requests to the platform's API (Application Programming Interface).
-  - Routes requests to the appropriate backend service, such as orders or restaurants, and can centralize authentication, logging, and rate limiting.
+  - Routes requests to the appropriate backend service, such as orders or restaurants; if it only does that, it's the same as the **reverse proxy**.
+  - However, usually, an API Gateway does more than just routing: it can centralize authentication, logging, and rate limiting.
   - Example: Route `POST /orders` from the customer app to the order service. The service still checks business rules, such as whether the customer may access a particular order.
 - **Load balancer:** Distributes incoming traffic across healthy server or service instances to spread work and maintain availability.
   - Example: Distribute order requests among three instances of the order service and stop sending requests to an instance that fails health checks.
@@ -570,6 +573,133 @@ flowchart LR
 Extension reference: [Excalidraw for VS Code](https://github.com/excalidraw/excalidraw-vscode).
 
 ### Communicating Sequences
+
+- **Sequence diagrams show behavior unfolding over time:** who interacts, in what order, and with which messages.
+  - Vertical lifelines represent participants; horizontal arrows represent interactions.
+  - Time progresses from top to bottom, revealing the order of operations.
+- **Use them to explain request-response behavior, especially when components wait for replies before continuing.**
+  - **API (Application Programming Interface) flows:** Trace authentication, validation, business logic, and data persistence.
+  - **User journeys:** Follow a user action across components, such as a button click loading a video from the browser through backend systems to a device and back.
+  - **Error handling:** Document authentication failures, invalid inputs, and timeouts alongside the successful path.
+  - For asynchronous, event-driven architectures, data flow or event flow diagrams often communicate the overall behavior more clearly.
+- **Keep diagrams focused and readable.**
+  - Show architecturally significant interactions across component boundaries rather than every method call.
+  - Use clear, consistent participant names, such as `User Service` instead of `US` or `Service 1`.
+  - Annotate timing constraints, including timeouts, to explain behavior under load.
+  - Group related steps with frames or notes; Mermaid's `alt` / `else` blocks express alternative outcomes.
+- **Mermaid and D2 both support sequence diagrams.**
+  - **Mermaid example below:** A user controls an HVAC (Heating, Ventilation, and Air Conditioning) device through a gateway and central server.
+    - JWT means JSON Web Token; HTTP means Hypertext Transfer Protocol.
+    - The success response confirms that the temperature change was initiated, rather than that the room reached the requested temperature.
+    - `participant ... as ...` defines readable labels; `->>` shows calls, `-->>` shows replies, and `CS->>CS` represents internal validation.
+  - **D2 example image:** A mobile app requests a profile through a gateway; an authentication service validates the token against user data and permissions before profile retrieval through a profile service and database. Responses return toward the app.
+
+![When to Use Sequence Diagrams](./assets/sequence_diagrams_when.png)
+
+![Sequence Diagram in Mermaid 1](./assets/sequence_mermaird_1.png)
+
+![Sequence Diagram in Mermaid 2](./assets/sequence_mermeid_2.png)
+
+![D2 Sequence Diagram](./assets/d2_sequence_diagram.jpeg)
+
+Mermaid example transcribed from the two syntax images:
+
+```mermaid
+sequenceDiagram
+    participant U as User Browser
+    participant AG as API Gateway
+    participant CS as Central Server
+    participant DeviceDB as Device Database
+    participant HVAC as HVAC Controller
+    U->>AG: POST /api/hvac/temperature {temp: 72, room: "Conference A"}
+    AG->>CS: Authenticate request with JWT token
+    CS-->>AG: Authentication successful
+    AG->>CS: Forward temperature change request
+    CS->>DeviceDB: Query device capabilities for room
+    DeviceDB-->>CS: Return device ID and temp range
+    CS->>CS: Validate temperature within range
+    CS->>HVAC: Send temperature command {deviceId: "hvac-001", temp: 72}
+    HVAC-->>CS: Acknowledge command received
+    CS-->>AG: Success response with command ID
+    AG-->>U: HTTP 200: Temperature change initiated
+    Note over U,HVAC: Full synchronous flow from user action to device command
+```
+
+### Sequence Diagrams: Exercise
+
+- **Task:** Model a registered, logged-in user turning on an exterior door's magnetic lock through a web dashboard in a centralized security and HVAC (Heating, Ventilation, and Air Conditioning) system.
+  - Show the synchronous request-response sequence from the user's click to the final response.
+  - Prioritize clarity and accuracy; use Mermaid, D2, draw.io, or another graphical editor.
+  - Deliver an image, such as PNG (Portable Network Graphics) or SVG (Scalable Vector Graphics), or a text file containing the diagram definition.
+- **Required participants and responsibilities:**
+  - **User's Browser:** Starts the interaction.
+  - **API (Application Programming Interface) Gateway:** Provides the single entry point for client requests and forwards authentication information in a header.
+  - **Central Server:** Verifies the user's session and permission to control the door before issuing a device command.
+  - **Maglock Device:** Executes the command and reports its status.
+- **Solution:** The diagram below shows the successful path, with session and authorization checks preceding the lock command and the resulting status returning through the server and gateway to the browser.
+  - HTTP means Hypertext Transfer Protocol; `200` indicates a successful response.
+
+![Sequence Diagram Exercise](./assets/sequence_diagram_exercise.jpeg)
+
+Mermaid equivalent of the solution image:
+
+```mermaid
+sequenceDiagram
+    participant U as User's Browser
+    participant AG as API Gateway
+    participant CS as Central Server
+    participant M as Maglock Device
+    U->>AG: POST /api/doors/exterior/lock
+    AG->>CS: Forward request with auth token
+    CS->>CS: Verify user session
+    CS->>CS: Check authorization for door control
+    CS->>M: Send LOCK command
+    M->>M: Engage magnetic lock
+    M-->>CS: Return status: LOCKED
+    CS-->>AG: Success response with status
+    AG-->>U: HTTP 200
+```
+
+### Communicating Events
+
+- **Event flow diagrams map asynchronous data journeys:** producers publish events, and consumers process them independently, potentially at different times and speeds.
+  - Emphasize loose coupling and parallel processing rather than a synchronous conversation in which each component waits for a reply.
+  - Independent consumers can isolate failures so one consumer's failure need not stop the others.
+- **Use event flow diagrams for:**
+  - Publish-subscribe microservices, stream processing, and reactive architectures.
+  - Background processing: A file upload triggers virus scanning, thumbnail generation, metadata extraction, and storage concurrently.
+  - Messaging infrastructure: Show producers, brokers, topics or queues, and consumers; examples include RabbitMQ, Apache Kafka, AWS (Amazon Web Services) SNS (Simple Notification Service), and SQS (Simple Queue Service).
+  - IoT (Internet of Things) networks: Trace sensor readings through ingestion, analytics, and business rules to resulting actions.
+    - Example: A temperature event independently triggers HVAC (Heating, Ventilation, and Air Conditioning) adjustments, logging, alerting, and analytics.
+- **Make the event relationships explicit.**
+  - Label event types meaningfully and show their sources and flow direction; event direction can differ from the order of business-process steps.
+  - Group related consumers and show feedback loops where a consumer publishes a new event.
+  - Show communication through the event bus without implying direct calls or synchronous waits between services.
+- **Common patterns:**
+  - **Fan-out:** One event reaches multiple consumers, such as notification, logging, and analytics services.
+    - The order example distributes events to inventory, payment, shipping, email, fulfillment, analytics, and audit services.
+    - Inventory, payment, and shipping also publish events back to the stream; the diagram connects fulfillment to a customer and analytics to a warehouse system.
+  - **Event sourcing:** Persist the history of state-changing events as the source of truth and derive current state by replaying them.
+    - Useful for audit trails and complex business processes; an event stream alone does not establish event sourcing without an authoritative event store ([reference](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing)).
+  - **Saga:** Coordinate a long-running business process across services through local steps and subsequent events or commands.
+    - Compensating actions address completed steps when the workflow fails, helping restore business consistency ([reference](https://learn.microsoft.com/en-us/azure/architecture/patterns/saga)).
+  - **CQRS (Command Query Responsibility Segregation):** Separate responsibilities for state-changing commands and data-reading queries.
+- **Distinguish workflow coordination from message transport.**
+  - **Orchestration:** A central controller directs workflow steps and handles outcomes.
+  - **Choreography:** Services react to relevant events and publish their own outcomes without a central workflow controller.
+    - Useful across bounded contexts, where each domain boundary should require minimal knowledge of other services.
+    - Example: The order service publishes `OrderPlaced`; inventory reacts and publishes `InventoryReserved`; shipping consumes the relevant order and inventory events.
+  - A central broker can support either approach; its presence alone does not imply orchestration, despite the labels in the example images ([reference](https://learn.microsoft.com/en-us/azure/architecture/patterns/choreography)).
+
+![Event Flow Diagram](./assets/event_flow_diagrams_2.png)
+
+![Fan-Out Pattern](./assets/fan_out_pattern.png)
+
+![Event Sourcing Pattern](./assets/event_sourcing_pattern.png)
+
+![Saga Pattern](./assets/saga_pattern.png)
+
+![Event Choreography Pattern](./assets/event_choreography.png)
 
 ## Microservices and Modular Design Patterns
 
